@@ -21,7 +21,7 @@ const fetchMyIP = function (callback) {
     
     if (response.statusCode !== 200){
 
-    callback(Error(`Status Code ${response.statusCode} when fetching IP: ${body}`), null);
+    callback(Error(`Status Code ${response.statusCode} whhile fetching IP: ${body}`), null);
     return;
     }
   
@@ -41,25 +41,95 @@ const fetchMyIP = function (callback) {
 
 
 const fetchCoordsByIP = function(ip, callback) {
-  
+
   request(`https://freegeoip.app/json/${ip}`, (error, response, body) => {
-    if (error) {
-      callback(error, null);
-      return;
+  
+  if (error) {
+  
+    callback(error, null);
+    return;
+  
     }
 
     if (response.statusCode !== 200) {
+      
       callback(Error(`Status Code ${response.statusCode} when fetching Coordinates for IP: ${body}`), null);
       return;
+    
     }
 
     const { latitude, longitude } = JSON.parse(body);
 
     callback(null, { latitude, longitude });
+
   });
+
+};
+
+const fetchISSFlyOverTimes = function(coords, callback) {
+  
+  const url = `http://api.open-notify.org/iss-pass.json?lat=${coords.latitude}&lon=${coords.longitude}`;
+
+  request(url, (error, response, body) => {
+    
+    if (error) {
+    
+      callback(error, null);
+      return;
+   
+    }
+
+    if (response.statusCode !== 200) {
+   
+      callback(Error(`Status Code ${response.statusCode} while fetching ISS pass times: ${body}`), null);
+      return;
+   
+    }
+
+    const passes = JSON.parse(body).response;
+    callback(null, passes);
+
+  });
+
 };
 
 
+const nextISSTimesForMyLocation = function(callback) {
+  fetchMyIP((error, ip) => {
+    
+    if (error) {
+    
+      return callback(error, null);
+    
+    }
+
+    fetchCoordsByIP(ip, (error, loc) => {
+      
+      if (error) {
+      
+        return callback(error, null);
+      
+      }
+
+      fetchISSFlyOverTimes(loc, (error, nextPasses) => {
+        if (error) {
+          
+          return callback(error, null);
+        
+        }
+
+        callback(null, nextPasses);
+
+      });
+
+    });
+ 
+  });
+
+};
 
 
-module.exports = {fetchMyIP,fetchCoordsByIP}
+module.exports = nextISSTimesForMyLocation;
+
+//not needed since we are now calling all the here in iss.js
+// module.exports = {fetchMyIP,fetchCoordsByIP,fetchISSFlyOverTimes}
